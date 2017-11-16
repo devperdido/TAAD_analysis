@@ -15,7 +15,8 @@ OPS = {
     "=": operator.eq,
     "!=": operator.ne,
     "&": operator.and_,
-    "|": operator.or_
+    "|": operator.or_,
+    "notna": pd.notna,
 }
 
 def risk_ratio_table(df, outfile=None):
@@ -32,7 +33,7 @@ def risk_ratio_table(df, outfile=None):
         ('primary diagnosis', '=', 'Dissection', None),
         ('maximal aortic size (cm)', '<=', 5, None),
         ('Long-term mortality (0=no, 1=yes)', '=', 0, 1),
-        ('Known Syndrome', '=', 'Marfan', None)
+        ('Known Syndrome', 'notna', None, None)
     ]
 
     all_table_rows = get_table_rows(df, test_groups)
@@ -43,7 +44,6 @@ def risk_ratio_table(df, outfile=None):
                         'RR(95% CI)', 'P-Value']
     rr_table = rr_table.set_index('')
     rr_table = rename_index(rr_table)
-    print('\nINFO: The risk ratio row for syndromic is calculated for MFS only')
     if outfile:
         rr_table.to_csv(outfile)
     return rr_table
@@ -65,7 +65,10 @@ def get_table_rows(df, test_groups):
         op = OPS[operation]
         rr, pval = pathogenic_risk_ratio(df, phenotype, op, exposed, not_exposed)
         plp_num = pathogenic_number(df, phenotype, op, exposed)
-        total = len(df[op(df[phenotype], exposed)])
+        if exposed is None:
+            total = len(df[op(df[phenotype])])
+        else:
+            total = len(df[op(df[phenotype], exposed)])
         table_rows.append([phenotype, total, plp_num, rr, pval])
     return table_rows
 
@@ -78,12 +81,15 @@ def pathogenic_number(df, col, op, value):
         op: operator string
         value: value col will be filtered for
     '''
-    group = df[op(df[col], value)]
+    if value is None:
+        group = df[op(df[col])]
+    else:
+        group = df[op(df[col], value)]
     plp_group = sf.validated_only(sf.pathogenic_only(group))
     percent_plp = len(plp_group) / len(group) * 100
     return '{0:d} ({1:.1f})'.format(len(plp_group), percent_plp)
 
-def pathogenic_risk_ratio(df, col, op, exposed_val, not_exposed_val=None):
+def pathogenic_risk_ratio(df, col, op, exposed_val=None, not_exposed_val=None):
     ''' Determine whether a phenotypic trait increases the 
         liklihood of carrying a causitive mutation for the
         disorder by performing riask ratio assessment
@@ -92,7 +98,8 @@ def pathogenic_risk_ratio(df, col, op, exposed_val, not_exposed_val=None):
         df: DataFrame
         col: phenotype column
         op: operator function
-        exposed_val: value of exposed group in column
+        exposed_val: value of exposed group in column (optional - will 
+                     test for True/False if None)
         not_exposed_val: value of non-exposed group (optional)
     Notes:
         The below example input will return the risk ratio
@@ -104,11 +111,15 @@ def pathogenic_risk_ratio(df, col, op, exposed_val, not_exposed_val=None):
         Risk ratio and p-value in a tuple
     '''    
     # exposed and non-exposed groups
-    exposed = df[op(df[col], exposed_val)]
-    if not_exposed_val:
-        not_exposed = df[op(df[col], not_exposed_val)]
+    if exposed_val is None:
+        exposed = df[op(df[col])]
+        not_exposed = df[~op(df[col])]
     else:
-        not_exposed = df[~op(df[col], exposed_val)]
+        exposed = df[op(df[col], exposed_val)]
+        if not_exposed_val:
+            not_exposed = df[op(df[col], not_exposed_val)]
+        else:
+            not_exposed = df[~op(df[col], exposed_val)]
         
     # Disease exposed and non-exposed groups
     d_exposed = len(sf.validated_only(sf.pathogenic_only(exposed)))
