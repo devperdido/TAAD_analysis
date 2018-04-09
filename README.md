@@ -1,5 +1,5 @@
 # TAAD_analysis
-Code for [some-paper] to define the frequency of causative genetic variants and phenotypic risk factors associated with a genetic aetiology of thoracic aortic aneurysm/dissection (TAAD).
+Code for the *Genetics in Medicine* article entitled *[Targeted genetic analysis in a large cohort of familial and sporadic cases of aneurysm or dissection of the thoracic aorta](https://www.nature.com/articles/gim201827)*  to define the frequency of causative genetic variants and phenotypic risk factors associated with a genetic aetiology of thoracic aortic aneurysm/dissection (TAAD).
 
 ## Getting Started
 ```bash
